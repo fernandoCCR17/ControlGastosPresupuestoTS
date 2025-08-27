@@ -3,7 +3,7 @@ import type { DraftExpense, Value } from "../types";
 import DatePicker from 'react-date-picker';
 import 'react-calendar/dist/Calendar.css'
 import 'react-date-picker/dist/DatePicker.css'
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import ErrorMessage from "./ErrorMessage";
 import { useBudget } from "../hooks/useBudget";
 
@@ -15,11 +15,20 @@ export default function ExpenseForm() {
     date: new Date()
   });
   const [error, setError] = useState('');
-  const { dispatch } = useBudget();
+  const { dispatch, state } = useBudget();
 
   const handleChangeDate = (value: Value) => {
     setExpense({...expense, date: value})
   }
+
+  useEffect(() => {
+    if(state.editingId){
+      const edititngExpense = state.expenses.filter(currentExpense => currentExpense.id === state.editingId)[0];
+      const {amount, category, expenseName, date} = edititngExpense;
+
+      setExpense({ amount, expenseName, category, date })
+    }
+  }, [state.editingId]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLSelectElement>) => {
     const {name, value} = e.target;
@@ -98,7 +107,7 @@ export default function ExpenseForm() {
         <label 
           htmlFor="category"
           className="text-xl"
-        >Cantidad:</label>
+        >Categoría:</label>
 
         <select 
           id="category"
