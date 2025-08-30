@@ -3,7 +3,7 @@ import type { DraftExpense, Value } from "../types";
 import DatePicker from 'react-date-picker';
 import 'react-calendar/dist/Calendar.css'
 import 'react-date-picker/dist/DatePicker.css'
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import ErrorMessage from "./ErrorMessage";
 import { useBudget } from "../hooks/useBudget";
 
@@ -15,7 +15,9 @@ export default function ExpenseForm() {
     date: new Date()
   });
   const [error, setError] = useState('');
-  const { dispatch, state } = useBudget();
+  const [previousAmount, setPreviousAmount] = useState(0);
+  const { dispatch, state, remaining} = useBudget();
+  const title = useMemo(() => state.editingId ? "EDITAR GASTO" : "NUEVO GASTO" , [state.editingId])
 
   const handleChangeDate = (value: Value) => {
     setExpense({...expense, date: value})
@@ -26,7 +28,8 @@ export default function ExpenseForm() {
       const edititngExpense = state.expenses.filter(currentExpense => currentExpense.id === state.editingId)[0];
       const {amount, category, expenseName, date} = edititngExpense;
 
-      setExpense({ amount, expenseName, category, date })
+      setExpense({ amount, expenseName, category, date });
+      setPreviousAmount(edititngExpense.amount)
     }
   }, [state.editingId]);
 
@@ -49,23 +52,35 @@ export default function ExpenseForm() {
       return;
     }
 
-    //Agregar un nuevo gasto
-    dispatch({ type: 'add-expense', payload: { expense } })
+    //validar que no me pase del limite
+    if((expense.amount - previousAmount) > remaining){
+      setError("Ese gasto se sale del presupuesto");
+      return;
+    }
+
+    //Agregar o actualizar el gasto
+    if(state.editingId){
+      dispatch({ type: 'update-expense', payload: { expense: { id: state.editingId, ...expense } } })
+    }else{
+      //Agregar un nuevo gasto
+      dispatch({ type: 'add-expense', payload: { expense } })
+    }
 
     //Reiniciar el state
     setExpense({
       amount: 0,
       expenseName: "",
       category: "",
-      date: new Date()
+      date: new Date(),
     })
+    setPreviousAmount(0);   
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
       <legend
         className="uppercase text-center text-2xl font-black border-b-4 border-blue-500 py-2"
-      >Nuevo Gasto</legend>
+      >{title}</legend>
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -143,7 +158,7 @@ export default function ExpenseForm() {
 
       <input 
         type="submit" 
-        value="Registrar Gasto" 
+        value={state.editingId ? 'Actualizar Gasto' : 'Registrar Gasto'} 
         className="bg-blue-600 cursor-pointer w-full p-2 text-white uppercase rounded-lg font-bold"
       />
     </form>
